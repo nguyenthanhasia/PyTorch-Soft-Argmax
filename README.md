@@ -10,3 +10,28 @@ Of course you can set channel to 1 then you'll get one coordinates for each inst
 
 Be careful that, you don't want use coordinates.floor() or coordinates.round() to get integer coordinates. Because these operations are not differentiable. 
 
+Implementation For 1D soft-argmax
+
+```
+import torch.nn as nn
+def soft_argmax(voxels):
+    """
+    Arguments: voxel patch in shape (batch_size, channel, L)
+    Return: 1D coordinates in shape (batch_size, channel)
+    """
+    assert voxels.dim()==3
+    # alpha is here to make the largest element really big, so it
+    # would become very close to 1 after softmax
+    alpha = 10000.0 
+    N,C,L = voxels.shape
+    soft_max = nn.functional.softmax(voxels.view(N,C,-1)*alpha,dim=2)
+    soft_max = soft_max.view(voxels.shape)
+    indices_kernel = torch.arange(start=0,end=L).unsqueeze(0)
+    indices_kernel = indices_kernel.view((L))
+    conv = soft_max*indices_kernel
+    indices = conv.sum(-1)
+    x = indices%L
+    coords = torch.stack([x],dim=2).squeeze(-1)
+    return coords
+
+```
